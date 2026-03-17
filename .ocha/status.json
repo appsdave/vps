@@ -1,0 +1,21 @@
+{
+  "session": {
+    "task": "setup hosting for this project with my  custom domain myopenclawvps.com so when we run the app and we are in a vps we can see the chanegs instead of localhost",
+    "startedAt": "2026-03-17T22:23:48.810Z",
+    "state": "running"
+  },
+  "tasks": [
+    {
+      "id": "task-1",
+      "description": "[Assigned by lead] setup hosting for this project with my  custom domain myopenclawvps.com so when we run the app and we are in a vps we can see the chanegs instead of localhost\n\nContext: This task was reviewed and assigned by the lead agent. Work in your isolated worktree, commit all changes, and ensure tests pass.",
+      "role": "builder",
+      "branch": "ocha/main-task",
+      "state": "pending",
+      "worktree": null,
+      "outputFile": null,
+      "result": null,
+      "startedAt": null,
+      "completedAt": null
+    }
+  ]
+}
