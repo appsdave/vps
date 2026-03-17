@@ -3,14 +3,14 @@
 # dev.sh — Route myopenclawvps.com through the bun dev server via nginx
 #
 # When dev mode is active, nginx proxies https://myopenclawvps.com to the
-# bun dev server running on 127.0.0.1:3000 instead of the OpenClaw gateway.
+# bun dev server running on 127.0.0.1:3001 instead of the OpenClaw gateway.
 #
 # Usage:
-#   sudo bash vps/dev.sh start       # swap to dev config and reload nginx
+#   sudo bash vps/dev.sh run         # activate nginx dev config + start bun dev server headlessly (logs → /tmp/ocha-dev-server.log)
+#   sudo bash vps/dev.sh stop-server # stop the headless dev server
+#   sudo bash vps/dev.sh start       # swap to dev nginx config only (no server start)
 #   sudo bash vps/dev.sh stop        # restore production config and reload nginx
 #   sudo bash vps/dev.sh status      # show current state
-#   sudo bash vps/dev.sh run         # start bun dev server headlessly (logs → /tmp/ocha-dev-server.log)
-#   sudo bash vps/dev.sh stop-server # stop the headless dev server
 #
 set -euo pipefail
 
@@ -50,8 +50,39 @@ case "${CMD}" in
         REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
         if [[ -f "${PID_FILE}" ]] && kill -0 "$(cat "${PID_FILE}")" 2>/dev/null; then
             echo "Dev server already running (PID $(cat "${PID_FILE}")). Log: ${LOG_FILE}"
+            echo "    Tail logs with: tail -f ${LOG_FILE}"
             exit 0
         fi
+
+        # Activate nginx dev proxy so the domain routes to the dev server
+        echo "==> Installing dev nginx config..."
+        cp "${DEV_CONF_SRC}" "${NGINX_AVAILABLE_DEV}"
+
+        echo "==> Disabling production site..."
+        if [[ -L "${NGINX_ENABLED_PROD}" ]]; then
+            rm "${NGINX_ENABLED_PROD}"
+            echo "    Removed production symlink."
+        else
+            echo "    Production symlink not found — skipping."
+        fi
+
+        echo "==> Enabling dev site..."
+        if [[ ! -L "${NGINX_ENABLED_DEV}" ]]; then
+            ln -s "${NGINX_AVAILABLE_DEV}" "${NGINX_ENABLED_DEV}"
+            echo "    Created dev symlink."
+        else
+            echo "    Dev symlink already exists."
+        fi
+
+        echo "==> Testing nginx configuration..."
+        nginx -t
+
+        echo "==> Reloading nginx..."
+        systemctl reload nginx
+        echo "    https://${DOMAIN} → bun dev server on 127.0.0.1:${BUN_DEV_PORT}"
+
+        # Start the dev server headlessly, keeping logs accessible
+        echo ""
         echo "==> Starting dev server headlessly..."
         echo "    Logs: ${LOG_FILE}"
         cd "${REPO_ROOT}"
