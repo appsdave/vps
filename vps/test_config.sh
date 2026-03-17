@@ -118,6 +118,56 @@ grep -q "certbot" "${SETUP}" \
     || fail "setup.sh missing SSL reminder"
 
 # =============================================================================
+echo "=== Dev proxy config validation ==="
+# =============================================================================
+
+DEV_CONF="${SCRIPT_DIR}/nginx/dev"
+
+[[ -f "${DEV_CONF}" ]] \
+    && pass "dev nginx config exists" \
+    || fail "dev nginx config missing"
+
+if [[ -f "${DEV_CONF}" ]]; then
+    grep -q "listen 127.0.0.1:8080" "${DEV_CONF}" \
+        && pass "dev config listens on localhost:8080" \
+        || fail "dev config missing localhost:8080 listener"
+
+    grep -q "proxy_pass https://myopenclawvps.com" "${DEV_CONF}" \
+        && pass "dev config proxies to https://myopenclawvps.com" \
+        || fail "dev config missing proxy_pass to myopenclawvps.com"
+
+    grep -q "proxy_ssl_server_name on" "${DEV_CONF}" \
+        && pass "dev config has proxy_ssl_server_name" \
+        || fail "dev config missing proxy_ssl_server_name"
+
+    grep -q "proxy_set_header Upgrade" "${DEV_CONF}" \
+        && pass "dev config has WebSocket upgrade header" \
+        || fail "dev config missing WebSocket support"
+fi
+
+[[ -f "${SCRIPT_DIR}/dev.sh" ]] \
+    && pass "dev.sh exists" \
+    || fail "dev.sh missing"
+
+[[ -x "${SCRIPT_DIR}/dev.sh" ]] \
+    && pass "dev.sh is executable" \
+    || fail "dev.sh not executable"
+
+if [[ -f "${SCRIPT_DIR}/dev.sh" ]]; then
+    grep -q "set -euo pipefail" "${SCRIPT_DIR}/dev.sh" \
+        && pass "dev.sh uses strict mode" \
+        || fail "dev.sh missing strict mode"
+
+    grep -q 'EUID -ne 0' "${SCRIPT_DIR}/dev.sh" \
+        && pass "dev.sh checks for root" \
+        || fail "dev.sh missing root check"
+
+    grep -q "start" "${SCRIPT_DIR}/dev.sh" && grep -q "stop" "${SCRIPT_DIR}/dev.sh" \
+        && pass "dev.sh has start/stop commands" \
+        || fail "dev.sh missing start/stop commands"
+fi
+
+# =============================================================================
 echo "=== Live service checks (skipped if not on VPS) ==="
 # =============================================================================
 

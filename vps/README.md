@@ -8,9 +8,11 @@ Hosting configuration for **myopenclawvps.com** — serves the OpenClaw gateway 
 vps/
 ├── README.md                    # This file
 ├── setup.sh                     # Deployment script (run with sudo)
+├── dev.sh                       # Dev proxy manager (run with sudo)
 ├── test_config.sh               # Configuration validation tests
 ├── nginx/
-│   └── myopenclawvps.com        # Nginx site config (SSL + reverse proxy)
+│   ├── myopenclawvps.com        # Nginx site config (SSL + reverse proxy)
+│   └── dev                      # Dev proxy config (localhost:8080 → domain)
 └── systemd/
     └── openclaw.service         # Systemd unit for OpenClaw gateway
 ```
@@ -30,6 +32,26 @@ OpenClaw gateway (127.0.0.1:18789)
 - **Nginx** terminates SSL and proxies all traffic (including WebSocket) to the OpenClaw gateway.
 - **HTTP → HTTPS** redirect is handled by the port-80 server block.
 - **SSL certificates** are managed by Certbot (Let's Encrypt).
+
+## Dev Proxy
+
+When developing locally, activate the dev proxy to route `http://localhost:8080`
+through to `https://myopenclawvps.com`:
+
+```bash
+# Start dev proxy (nginx must be running)
+sudo bash vps/dev.sh start
+
+# Verify routing
+curl -s http://localhost:8080/health
+# Expected: {"ok":true,"status":"live"}
+
+# Stop dev proxy when done
+sudo bash vps/dev.sh stop
+
+# Check current state
+sudo bash vps/dev.sh status
+```
 
 ## Quick Deploy
 
