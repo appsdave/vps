@@ -38,28 +38,31 @@ Client (browser)
 nginx (port 443, SSL)
   │  reverse proxy
   ▼
-bun dev server (127.0.0.1:3000)
+bun dev server (127.0.0.1:3001)
 ```
 
 - **Nginx** terminates SSL and proxies all traffic (including WebSocket) to the active backend.
 - **HTTP → HTTPS** redirect is handled by the port-80 server block.
 - **SSL certificates** are managed by Certbot (Let's Encrypt).
-- In dev mode, `dev.sh start` swaps the production nginx config for the dev one and reloads nginx. `dev.sh stop` restores production.
+- In dev mode, `dev.sh run` swaps the production nginx config for the dev one, reloads nginx, and starts the bun dev server headlessly (logs → `/tmp/ocha-dev-server.log`). `dev.sh stop` restores production.
 
 ## Dev Mode
 
 When developing on the VPS, activate dev mode to route `https://myopenclawvps.com`
-through to the local bun dev server on port 3000:
+through to the local bun dev server on port 3001:
 
 ```bash
-# 1. Start bun dev server
-bun dev
+# Start nginx dev routing + bun dev server (headless, logs → /tmp/ocha-dev-server.log)
+sudo bash vps/dev.sh run
 
-# 2. In another shell, enable dev routing via nginx
-sudo bash vps/dev.sh start
+# Tail the dev server logs
+tail -f /tmp/ocha-dev-server.log
 
 # Verify routing
 curl -s https://myopenclawvps.com/health
+
+# Stop just the dev server process
+sudo bash vps/dev.sh stop-server
 
 # Stop dev mode and restore production when done
 sudo bash vps/dev.sh stop
@@ -109,7 +112,7 @@ curl -s https://myopenclawvps.com/health
 |------------------|--------------------------------|
 | Domain           | myopenclawvps.com              |
 | Production port  | 18789 (OpenClaw gateway)       |
-| Dev port         | 3000 (bun dev server)          |
+| Dev port         | 3001 (bun dev server)          |
 | Site root        | /home/balls/myopenclawvps.com  |
 | SSL cert         | /etc/letsencrypt/live/myopenclawvps.com/fullchain.pem |
 | SSL key          | /etc/letsencrypt/live/myopenclawvps.com/privkey.pem   |
