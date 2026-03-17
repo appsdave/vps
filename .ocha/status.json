@@ -2,7 +2,8 @@
   "session": {
     "task": "setup hosting for this project with my  custom domain myopenclawvps.com so when we run the app and we are in a vps we can see the chanegs instead of localhost",
     "startedAt": "2026-03-17T22:23:48.810Z",
-    "state": "running"
+    "state": "completed",
+    "completedAt": "2026-03-17T22:59:04.171Z"
   },
   "tasks": [
     {
