@@ -8,17 +8,18 @@ Hosting configuration for **myopenclawvps.com** — serves the OpenClaw gateway 
 vps/
 ├── README.md                    # This file
 ├── setup.sh                     # Deployment script (run with sudo)
-├── dev.sh                       # Dev proxy manager (run with sudo)
+├── dev.sh                       # Dev mode manager (run with sudo)
 ├── test_config.sh               # Configuration validation tests
 ├── nginx/
-│   ├── myopenclawvps.com        # Nginx site config (SSL + reverse proxy)
-│   └── dev                      # Dev proxy config (localhost:8080 → domain)
+│   ├── myopenclawvps.com        # Nginx site config (SSL + reverse proxy → OpenClaw)
+│   └── dev                      # Dev nginx config (SSL + reverse proxy → bun dev)
 └── systemd/
     └── openclaw.service         # Systemd unit for OpenClaw gateway
 ```
 
 ## Architecture
 
+**Production**
 ```
 Client (browser)
   │
@@ -29,24 +30,38 @@ nginx (port 443, SSL)
 OpenClaw gateway (127.0.0.1:18789)
 ```
 
-- **Nginx** terminates SSL and proxies all traffic (including WebSocket) to the OpenClaw gateway.
+**Dev mode** (while `bun dev` is running)
+```
+Client (browser)
+  │
+  ▼
+nginx (port 443, SSL)
+  │  reverse proxy
+  ▼
+bun dev server (127.0.0.1:3000)
+```
+
+- **Nginx** terminates SSL and proxies all traffic (including WebSocket) to the active backend.
 - **HTTP → HTTPS** redirect is handled by the port-80 server block.
 - **SSL certificates** are managed by Certbot (Let's Encrypt).
+- In dev mode, `dev.sh start` swaps the production nginx config for the dev one and reloads nginx. `dev.sh stop` restores production.
 
-## Dev Proxy
+## Dev Mode
 
-When developing locally, activate the dev proxy to route `http://localhost:8080`
-through to `https://myopenclawvps.com`:
+When developing on the VPS, activate dev mode to route `https://myopenclawvps.com`
+through to the local bun dev server on port 3000:
 
 ```bash
-# Start dev proxy (nginx must be running)
+# 1. Start bun dev server
+bun dev
+
+# 2. In another shell, enable dev routing via nginx
 sudo bash vps/dev.sh start
 
 # Verify routing
-curl -s http://localhost:8080/health
-# Expected: {"ok":true,"status":"live"}
+curl -s https://myopenclawvps.com/health
 
-# Stop dev proxy when done
+# Stop dev mode and restore production when done
 sudo bash vps/dev.sh stop
 
 # Check current state
@@ -93,7 +108,8 @@ curl -s https://myopenclawvps.com/health
 | Setting          | Value                          |
 |------------------|--------------------------------|
 | Domain           | myopenclawvps.com              |
-| App port         | 18789                          |
+| Production port  | 18789 (OpenClaw gateway)       |
+| Dev port         | 3000 (bun dev server)          |
 | Site root        | /home/balls/myopenclawvps.com  |
 | SSL cert         | /etc/letsencrypt/live/myopenclawvps.com/fullchain.pem |
 | SSL key          | /etc/letsencrypt/live/myopenclawvps.com/privkey.pem   |

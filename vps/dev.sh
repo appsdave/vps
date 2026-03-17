@@ -1,23 +1,28 @@
 #!/usr/bin/env bash
 #
-# dev.sh — Manage the local dev proxy for myopenclawvps.com
+# dev.sh — Route myopenclawvps.com through the bun dev server via nginx
 #
-# When the dev proxy is active, requests to http://localhost:8080 are routed
-# to https://myopenclawvps.com so the local dev server forwards through the
-# production domain.
+# When dev mode is active, nginx proxies https://myopenclawvps.com to the
+# bun dev server running on 127.0.0.1:3000 instead of the OpenClaw gateway.
 #
 # Usage:
-#   sudo bash vps/dev.sh start    # enable dev proxy and reload nginx
-#   sudo bash vps/dev.sh stop     # disable dev proxy and reload nginx
+#   sudo bash vps/dev.sh start    # swap to dev config and reload nginx
+#   sudo bash vps/dev.sh stop     # restore production config and reload nginx
 #   sudo bash vps/dev.sh status   # show current state
 #
 set -euo pipefail
 
 DOMAIN="myopenclawvps.com"
+BUN_DEV_PORT="3000"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 DEV_CONF_SRC="${SCRIPT_DIR}/nginx/dev"
-NGINX_AVAILABLE="/etc/nginx/sites-available/dev"
-NGINX_ENABLED="/etc/nginx/sites-enabled/dev"
+PROD_CONF_SRC="${SCRIPT_DIR}/nginx/myopenclawvps.com"
+
+NGINX_AVAILABLE_DEV="/etc/nginx/sites-available/dev"
+NGINX_AVAILABLE_PROD="/etc/nginx/sites-available/myopenclawvps.com"
+NGINX_ENABLED_DEV="/etc/nginx/sites-enabled/dev"
+NGINX_ENABLED_PROD="/etc/nginx/sites-enabled/myopenclawvps.com"
 
 # --- Preflight checks --------------------------------------------------------
 
@@ -37,14 +42,23 @@ CMD="${1:-}"
 
 case "${CMD}" in
     start)
-        echo "==> Installing dev proxy config..."
-        cp "${DEV_CONF_SRC}" "${NGINX_AVAILABLE}"
+        echo "==> Installing dev nginx config..."
+        cp "${DEV_CONF_SRC}" "${NGINX_AVAILABLE_DEV}"
 
-        if [[ ! -L "${NGINX_ENABLED}" ]]; then
-            ln -s "${NGINX_AVAILABLE}" "${NGINX_ENABLED}"
-            echo "    Enabled dev proxy symlink."
+        echo "==> Disabling production site..."
+        if [[ -L "${NGINX_ENABLED_PROD}" ]]; then
+            rm "${NGINX_ENABLED_PROD}"
+            echo "    Removed production symlink."
         else
-            echo "    Dev proxy symlink already exists."
+            echo "    Production symlink not found — skipping."
+        fi
+
+        echo "==> Enabling dev site..."
+        if [[ ! -L "${NGINX_ENABLED_DEV}" ]]; then
+            ln -s "${NGINX_AVAILABLE_DEV}" "${NGINX_ENABLED_DEV}"
+            echo "    Created dev symlink."
+        else
+            echo "    Dev symlink already exists."
         fi
 
         echo "==> Testing nginx configuration..."
@@ -54,24 +68,33 @@ case "${CMD}" in
         systemctl reload nginx
 
         echo ""
-        echo "==> Dev proxy active!"
-        echo "    Local:   http://localhost:8080"
-        echo "    Routes → https://${DOMAIN}"
+        echo "==> Dev mode active!"
+        echo "    https://${DOMAIN} → bun dev server on 127.0.0.1:${BUN_DEV_PORT}"
         echo ""
-        echo "To verify: curl -s http://localhost:8080/health"
+        echo "Make sure bun dev is running:  bun dev"
+        echo "To verify:                     curl -s https://${DOMAIN}/health"
         ;;
 
     stop)
-        if [[ -L "${NGINX_ENABLED}" ]]; then
-            rm "${NGINX_ENABLED}"
-            echo "==> Removed dev proxy symlink."
+        echo "==> Disabling dev site..."
+        if [[ -L "${NGINX_ENABLED_DEV}" ]]; then
+            rm "${NGINX_ENABLED_DEV}"
+            echo "    Removed dev symlink."
         else
-            echo "==> Dev proxy symlink not found — already inactive."
+            echo "    Dev symlink not found — already inactive."
         fi
 
-        if [[ -f "${NGINX_AVAILABLE}" ]]; then
-            rm "${NGINX_AVAILABLE}"
-            echo "==> Removed dev proxy config from sites-available."
+        if [[ -f "${NGINX_AVAILABLE_DEV}" ]]; then
+            rm "${NGINX_AVAILABLE_DEV}"
+            echo "    Removed dev config from sites-available."
+        fi
+
+        echo "==> Restoring production site..."
+        if [[ ! -L "${NGINX_ENABLED_PROD}" ]]; then
+            ln -s "${NGINX_AVAILABLE_PROD}" "${NGINX_ENABLED_PROD}"
+            echo "    Created production symlink."
+        else
+            echo "    Production symlink already exists."
         fi
 
         echo "==> Testing nginx configuration..."
@@ -81,14 +104,15 @@ case "${CMD}" in
         systemctl reload nginx
 
         echo ""
-        echo "==> Dev proxy stopped."
+        echo "==> Production mode restored."
+        echo "    https://${DOMAIN} → OpenClaw gateway"
         ;;
 
     status)
-        if [[ -L "${NGINX_ENABLED}" ]]; then
-            echo "Dev proxy: ACTIVE (http://localhost:8080 → https://${DOMAIN})"
+        if [[ -L "${NGINX_ENABLED_DEV}" ]]; then
+            echo "Dev mode:  ACTIVE   (https://${DOMAIN} → bun dev on 127.0.0.1:${BUN_DEV_PORT})"
         else
-            echo "Dev proxy: INACTIVE"
+            echo "Dev mode:  INACTIVE (https://${DOMAIN} → OpenClaw gateway)"
         fi
         ;;
 

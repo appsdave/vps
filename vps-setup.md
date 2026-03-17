@@ -65,7 +65,8 @@
   - Certificate: /etc/letsencrypt/live/myopenclawvps.com/fullchain.pem
   - Key: /etc/letsencrypt/live/myopenclawvps.com/privkey.pem
 - **HTTP → HTTPS redirect:** Yes (managed by Certbot)
-- **Reverse proxy:** All requests proxied to OpenClaw gateway at `127.0.0.1:18789` (WebSocket support enabled)
+- **Reverse proxy (production):** All requests proxied to OpenClaw gateway at `127.0.0.1:18789` (WebSocket support enabled)
+- **Reverse proxy (dev mode):** All requests proxied to bun dev server at `127.0.0.1:3000` — activate with `sudo bash vps/dev.sh start`, restore with `sudo bash vps/dev.sh stop`
 - **Remote URL:** `https://myopenclawvps.com`
 - **Health check:** `https://myopenclawvps.com/health` → `{"ok":true,"status":"live"}`
 
